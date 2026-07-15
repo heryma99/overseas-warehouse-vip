@@ -1,0 +1,222 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VIP华人行 海外仓价格预估模型</title>
+<style>
+:root{--bg:#0f1419;--card:#1a212b;--line:#2a3340;--tx:#e6edf3;--mut:#8b98a5;--acc:#4cc2ff;--acc2:#ffb454;--ok:#3fb950;--bad:#f85149;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 -apple-system,'Segoe UI',Roboto,'Microsoft YaHei',sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:18px}
+header{background:linear-gradient(90deg,#0d2847,#15324f);border-bottom:1px solid var(--line);padding:18px 22px}
+header h1{margin:0;font-size:20px;font-weight:700;color:var(--tx)}
+header p{margin:4px 0 0;font-size:12.5px;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 12px;font-size:15px;color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.fld label{display:block;color:var(--mut);font-size:12px;margin-bottom:4px;font-weight:600}
+.fld input,.fld select{width:100%;background:#0d1117;border:1px solid var(--line);color:var(--tx);border-radius:7px;padding:8px 10px;font-size:13px}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--acc)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line);margin:14px 0 16px}
+.tab{padding:9px 16px;cursor:pointer;color:var(--mut);border-bottom:2px solid transparent;font-size:13.5px;font-weight:600}
+.tab.on{color:var(--acc);border-color:var(--acc)}
+.btns{margin-top:6px}
+button.cal{background:var(--acc);color:#06222f;border:0;padding:9px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+button.ghost{background:#0d1117;border:1px solid var(--line);padding:9px 16px;border-radius:8px;cursor:pointer;color:var(--mut)}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:#11161d;color:var(--mut);font-weight:700;font-size:12px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.cat{font-weight:700}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:700;vertical-align:middle;margin-left:5px}
+.b-green{background:var(--ok);color:#06260f}.b-yellow{background:#d9a441;color:#2a1d00}.b-red{background:var(--bad);color:#fff}.b-na{background:#566;color:#fff}
+.note{font-size:11.5px;color:var(--mut);margin-top:2px}
+.amt{font-weight:700}
+.tot{font-size:16px;font-weight:800;color:var(--acc2)}
+tr.subtot td{background:#11161d;font-weight:700;border-top:1px dashed var(--line)}
+.warn{background:#2a1f12;border:1px solid #6b4a1f;color:#ffcf8a;padding:10px 12px;border-radius:8px;font-size:12.5px;margin-top:10px}
+.legend{font-size:12px;color:var(--mut);margin:8px 0 0}
+footer{color:var(--mut);font-size:11.5px;text-align:center;padding:18px;border-top:1px solid var(--line);margin-top:10px}
+.seghead{color:var(--acc);font-weight:700;background:#11161d}
+</style></head>
+<body>
+<header>
+  <h1>VIP华人行 海外仓价格预估模型</h1>
+  <p>分段预估（头程/入库/仓储/出库·尾程/退件）+ 全链路汇总 ｜ 覆盖：尾程为主 + 一件代发（美国） ｜ 评级 🟢已验证 / 🟡部分对齐 / 🔴未对齐 / ⚪无数据</p>
+  <p style="margin-top:6px">数据覆盖：报价仅含尾程(USPS渠道·结算价)🟢 · 库内(卸货/上架/理货)无报价→⚪ · 出库操作费报价0.40/单🟡(2025-04账单改名「下架操作费」=0.65/单,命名+单价漂移待确认) · 仓储0.22/天·件🟡</p>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <h3>场景输入（改任一项点「计算预估」实时重算；切上方标签看各段 / 全链路）</h3>
+    <div class="grid">
+      <div class="fld"><label>实重 (kg/件)</label><input id="kg" type="number" value="0.5" step="0.01" min="0"></div>
+      <div class="fld"><label>长 (cm)</label><input id="L" type="number" value="20" step="1"></div>
+      <div class="fld"><label>宽 (cm)</label><input id="W" type="number" value="15" step="1"></div>
+      <div class="fld"><label>高 (cm)</label><input id="H" type="number" value="10" step="1"></div>
+      <div class="fld"><label>件数</label><input id="qty" type="number" value="1" step="1" min="1"></div>
+      <div class="fld"><label>分区 Zone</label><input id="zone" type="number" value="8" min="1" max="15" step="1"></div>
+      <div class="fld"><label>仓储天数</label><input id="days" type="number" value="60" step="1" min="0"></div>
+      <div class="fld"><label>体积 CBM (整批)</label><input id="vol" type="number" value="0.02" step="0.001"></div>
+      <div class="fld"><label>SKU 种类数</label><input id="sku" type="number" value="3" step="1" min="0"></div>
+      <div class="fld"><label>混装实收SKU行数</label><input id="mix" type="number" value="0" step="1" min="0"></div>
+      <div class="fld"><label>新品 SKU 数</label><input id="newsku" type="number" value="0" step="1" min="0"></div>
+      <div class="fld"><label>头程运费(整批,可选USD)</label><input id="head" type="number" value="0" step="0.01" min="0"></div>
+    </div>
+    <div class="legend">计费重：跨境在线·万邑通=max(实重,材积/6000)；VIP=max(实重,长×宽×高(英寸)/166)。入库/出库按件数×单价；仓储按体积×天数。头程非本仓报价范围，手填整批USD即纳入全链路。</div>
+    <div class="btns"><button class="cal" onclick="calcSingle()">计算预估</button></div>
+    <div id="out"></div>
+  </div>
+
+  <div class="warn">⚠️ VIP 报价仅含尾程，库内(卸货/上架/理货/新品查验)无报价数据，故入库段多为⚪；出库操作费报价0.40，但2025-04账单同名项「下架操作费」=0.65/单，命名+单价漂移，已标🟡，待你向VIP确认是否同项。</div>
+
+  <footer>数据来源：各仓报价表 + 真实账单(2025–2026)交叉验证 ｜ 评级 🟢已验证 / 🟡部分对齐 / 🔴未对齐 / ⚪无数据 ｜ 尾程统一 USPS Ground Advantage（VIP=结算价，万邑通🔴渠道错配）｜ 模型为估算参考，最终以各仓实际账单为准。谷仓单独模型见 heryma99.github.io/goodcang-fulfillment-model/</footer>
+</div>
+
+<script>
+var DATA = {"warehouses": {"vip": {"id": "vip", "name": "VIP华人行", "region": "美国", "scope": "尾程为主+一件代发", "bill_month": "2025-04/2026-04", "tail": {"carrier": "USPS渠道", "pricing": "结算", "norm": {"oz": {"1.0": {"1": 4.21, "2": 4.25, "3": 4.28, "4": 4.39, "5": 4.48, "6": 4.63, "7": 4.71, "8": 4.9}, "2.0": {"1": 4.21, "2": 4.25, "3": 4.28, "4": 4.39, "5": 4.48, "6": 4.63, "7": 4.71, "8": 4.9}, "3.0": {"1": 4.21, "2": 4.25, "3": 4.28, "4": 4.39, "5": 4.48, "6": 4.63, "7": 4.71, "8": 4.9}, "4.0": {"1": 4.21, "2": 4.25, "3": 4.28, "4": 4.39, "5": 4.48, "6": 4.63, "7": 4.71, "8": 4.9}, "5.0": {"1": 4.24, "2": 4.28, "3": 4.31, "4": 4.42, "5": 4.57, "6": 4.83, "7": 4.93, "8": 5.19}, "6.0": {"1": 4.24, "2": 4.28, "3": 4.31, "4": 4.42, "5": 4.57, "6": 4.83, "7": 4.93, "8": 5.19}, "7.0": {"1": 4.24, "2": 4.28, "3": 4.31, "4": 4.42, "5": 4.57, "6": 4.83, "7": 4.93, "8": 5.19}, "8.0": {"1": 4.24, "2": 4.28, "3": 4.31, "4": 4.42, "5": 4.57, "6": 4.83, "7": 4.93, "8": 5.19}, "9.0": {"1": 4.57, "2": 4.61, "3": 4.69, "4": 4.84, "5": 5.08, "6": 5.48, "7": 5.63, "8": 5.98}, "10.0": {"1": 4.57, "2": 4.61, "3": 4.69, "4": 4.84, "5": 5.08, "6": 5.48, "7": 5.63, "8": 5.98}, "11.0": {"1": 4.57, "2": 4.61, "3": 4.69, "4": 4.84, "5": 5.08, "6": 5.48, "7": 5.63, "8": 5.98}, "12.0": {"1": 4.57, "2": 4.61, "3": 4.69, "4": 4.84, "5": 5.08, "6": 5.48, "7": 5.63, "8": 5.98}, "13.0": {"1": 4.82821878268847, "2": 4.87117877060597, "3": 4.96783874342036, "4": 5.16115868904912, "5": 5.54409859540977, "6": 6.05961845041981, "7": 6.25293839604858, "8": 6.66105828126486}, "14.0": {"1": 4.82821878268847, "2": 4.87117877060597, "3": 4.96783874342036, "4": 5.16115868904912, "5": 5.54409859540977, "6": 6.05961845041981, "7": 6.25293839604858, "8": 6.66105828126486}, "15.0": {"1": 4.82821878268847, "2": 4.87117877060597, "3": 4.96783874342036, "4": 5.16115868904912, "5": 5.54409859540977, "6": 6.05961845041981, "7": 6.25293839604858, "8": 6.66105828126486}, "15.999": {"1": 4.82821878268847, "2": 4.87117877060597, "3": 4.96783874342036, "4": 5.16115868904912, "5": 5.54409859540977, "6": 6.05961845041981, "7": 6.25293839604858, "8": 6.66105828126486}}, "lb": {"1.0": {"1": 6.03109844437856, "2": 6.05257843833732, "3": 6.21367839302795, "4": 6.56809829334736, "5": 7.39137807586242, "6": 8.379457797965, "7": 8.63721772547001, "8": 9.31383753517069}, "2.0": {"1": 6.25663838094546, "2": 6.28885837188358, "3": 6.49291831449172, "4": 6.95473818460488, "5": 7.99281790670746, "6": 9.28161754423256, "7": 9.62529744757259, "8": 10.5059771998814}, "3.0": {"1": 6.61105828126486, "2": 6.64327827220298, "3": 6.94399818762551, "4": 7.57765800940868, "5": 8.89497765297504, "6": 10.5274571938401, "7": 11.064457042809, "8": 12.2888166984578}, "4.0": {"1": 7.05103819970801, "2": 7.09399818762551, "3": 7.46989808190366, "4": 8.24317786441872, "5": 10.0252974475726, "6": 11.9584969038602, "7": 12.6243767165815, "8": 14.1494562876529}, "5.0": {"1": 7.19065816043989, "2": 7.2336181483574, "3": 7.65247803055306, "4": 8.49019779494437, "5": 10.4226773358095, "6": 12.4847567558496, "7": 13.236556544406, "8": 14.922736070168}, "6.0": {"1": 7.41619809700678, "2": 7.46989808190366, "3": 7.93171795201682, "4": 8.8768376862019, "5": 11.0133771696752, "6": 13.3117365232616, "7": 14.1601962846323, "8": 16.0826557439406}, "7.0": {"1": 7.53433806377992, "2": 7.57729805169742, "3": 8.08207790972809, "4": 9.08089762881004, "5": 11.3463170760358, "6": 13.7628163963954, "7": 14.6864561366217, "8": 16.7377955596825}, "8.0": {"1": 7.6309980365943, "2": 7.68469802149118, "3": 8.2109578734806, "4": 9.25273758048006, "5": 11.6470369914583, "6": 14.1494562876529, "7": 15.1482760067348, "8": 17.29627540261}, "9.0": {"1": 7.77061799732619, "2": 7.82431798222307, "3": 8.37205782817124, "4": 9.46753752006758, "5": 12.0014568917778, "6": 14.6327561517248, "7": 15.6960158526831, "8": 17.9943752062695}, "10.0": {"1": 7.93171795201682, "2": 7.99615793389308, "3": 8.55463777682062, "4": 9.7145574505932, "5": 12.3773567860559, "6": 15.1482760067348, "7": 16.2867156865487, "8": 18.7354349978464}, "11.0": {"1": 8.67205782817124, "2": 8.72575781306811, "3": 9.30571764995442, "4": 10.5193373086239, "5": 13.478796616901, "6": 16.3463758103943, "7": 17.6244354509401, "8": 20.2557347108871}, "12.0": {"1": 8.8653777738, "2": 8.92981775567626, "3": 9.5312575865213, "4": 10.8093172270671, "5": 13.908396496076, "6": 16.93707564426, "7": 18.2903152636613, "8": 21.0934544752784}, "13.0": {"1": 9.05869771942877, "2": 9.1338776982844, "3": 9.7567975230882, "4": 11.0992971455102, "5": 14.3594763692097, "6": 17.5492554720844, "7": 18.9776750703413, "8": 21.9419142366491}, "14.0": {"1": 9.25201766505753, "2": 9.32719764391316, "3": 9.9715974626757, "4": 11.4000170609327, "5": 14.8105562423435, "6": 18.1721752968882, "7": 19.6757748740008, "8": 22.822593988958}, "15.0": {"1": 9.43459761370692, "2": 9.50977759256255, "3": 10.1971373992426, "4": 11.6899969793758, "5": 15.2616361154773, "6": 18.8058351186714, "7": 20.3846146746396, "8": 23.7032737412667}, "16.0": {"1": 9.60643756537694, "2": 9.69235754121194, "3": 10.4011973418508, "4": 11.9692369008396, "5": 15.7234559855905, "6": 19.450234937434, "7": 21.1041944722578, "8": 24.5839534935756}, "17.0": {"1": 9.778277517047, "2": 9.8749374898613, "3": 10.6159972814383, "4": 12.2592168192828, "5": 16.1315758708068, "6": 20.0194547773408, "7": 21.7485942910204, "8": 25.4001932640081}, "18.0": {"1": 9.9608574656963, "2": 10.0575174385107, "3": 10.8415372180051, "4": 12.5599367347052, "5": 16.5611757499818, "6": 20.6316346051653, "7": 22.4359540977004, "8": 26.2593930223582}, "19.0": {"1": 10.1434374143457, "2": 10.2508373841395, "3": 11.0563371575926, "4": 12.8499166531484, "5": 17.0015156261362, "6": 21.2330744360103, "7": 23.1125739074011, "8": 27.1078527837289}, "20.0": {"1": 10.3689773509126, "2": 10.4978573146651, "3": 11.3677970699946, "4": 13.1613765655504, "5": 17.5814754630225, "6": 22.1459741792572, "7": 24.3047135721118, "8": 28.3644324303159}}, "zones": [1, 2, 3, 4, 5, 6, 7, 8]}, "volDiv": 166, "note": "按实重计费；体积>1728立方英寸按实重与体积重取大，体积重(LB)=长×宽×高/166"}, "inbound": {"IB_F": {"price": 0.4, "unit": "单", "basis": "出库操作费/单（报价）", "rating": "yellow", "note": "2026报价0.40；2025-04账单改名\"下架操作费\"=0.65/单，命名+单价漂移，待确认是否同项"}, "LC": {"price": null, "unit": "—", "basis": "—", "rating": "na", "note": "报价未单列卸货"}, "IB_TF": {"price": null, "unit": "—", "basis": "—", "rating": "na", "note": "—"}, "IB_TS": {"price": null, "unit": "—", "basis": "—", "rating": "na", "note": "—"}, "NPIF": {"price": null, "unit": "—", "basis": "—", "rating": "na", "note": "—"}}, "storage": {"price": 0.22, "unit": "天·件", "basis": "在库仓租/天·件", "rating": "yellow", "note": "2026-04账单在库仓租0.22/天·件，无CBM"}, "outbound": {"BFF": {"price": 0.4, "unit": "单", "basis": "出库操作费/单（报价）", "rating": "yellow", "note": "见入库IB_F说明"}, "MULTIPACK": {"price": null, "unit": "—", "basis": "—", "rating": "na", "note": "—"}}, "return": {"price": null, "unit": "—", "basis": "—", "rating": "na", "note": "报价未单列退件"}}}};
+var WH = DATA.warehouses;
+var curWh = 'vip';
+var curSeg = 'all';
+// 阶段分组（对齐谷仓单独模型：头程/入库/仓储/出库/全链路）
+var SEGS=[
+  {id:'head', name:'头程散货', cats:['HEAD']},
+  {id:'inbound', name:'入库上架', cats:['LC','IB_TF','IB_TS','IB_F','NPIF']},
+  {id:'storage', name:'仓储费', cats:['STO']},
+  {id:'outbound', name:'出库(含尾程·退件)', cats:['BFF','TAIL','RETURN']}
+];
+var SEGLAB={LC:'卸货费 LC',IB_TF:'分拣费 IB_TF',IB_TS:'理货费 IB_TS',IB_F:'入库操作费 IB_F',NPIF:'新品查验 NPIF',STO:'仓储费 STO',BFF:'出库操作费 BFF',TAIL:'尾程运费 TAIL',RETURN:'退件处理 RETURN',HEAD:'头程运费 HEAD'};
+
+function switchTab(id){
+  curSeg=id;
+  document.querySelectorAll('.tab').forEach(function(e){ e.className='tab'+(e.dataset.s===id?' on':''); });
+  calcSingle();
+}
+function scn(){
+  return {
+    kg:+(document.getElementById('kg').value||0),
+    L:+(document.getElementById('L').value||0),
+    W:+(document.getElementById('W').value||0),
+    H:+(document.getElementById('H').value||0),
+    qty:Math.max(1,+(document.getElementById('qty').value||1)),
+    zone:+(document.getElementById('zone').value||8),
+    days:+(document.getElementById('days').value||0),
+    vol:+(document.getElementById('vol').value||0),
+    sku:+(document.getElementById('sku').value||0),
+    mix:+(document.getElementById('mix').value||0),
+    newsku:+(document.getElementById('newsku').value||0),
+    head:+(document.getElementById('head').value||0)
+  };
+}
+function wtTier(kg){
+  var tiers=[['0<X≤0.5 KG',0.5],['0.5<X≤1 KG',1],['1<X≤3 KG',3],['3<X≤5 KG',5],['5<X≤8 KG',8],['8<X≤10 KG',10],['10<X≤15 KG',15],['15<X≤20 KG',20],['20<X≤30 KG',30]];
+  for(var i=0;i<tiers.length;i++){ if(kg<=tiers[i][1]) return tiers[i][0]; }
+  return '20<X≤30 KG';
+}
+function bffTier(kg){ return kg<=0.5 ? '0.5<X≤1 KG' : wtTier(kg); }
+function ceilKey(keys, t){
+  var pairs=keys.map(function(k){return [k, Number(k)];}).sort(function(a,b){return a[1]-b[1];});
+  for(var i=0;i<pairs.length;i++){ if(pairs[i][1]>=t-1e-9) return pairs[i][0]; }
+  return pairs[pairs.length-1][0];
+}
+function tailNorm(norm, sc, kind){
+  var bk, oz, lb, row, price;
+  if(kind==='vip'){
+    var Lin=sc.L/2.54,Win=sc.W/2.54,Hin=sc.H/2.54;
+    var vlb=(Lin*Win*Hin)/166;
+    var blb=Math.max(sc.kg/0.45359237, vlb);
+    if(blb<=1){ oz=Math.ceil(blb*16); var ok=ceilKey(Object.keys(norm.oz), oz); row=norm.oz[String(ok)]; }
+    else { lb=Math.ceil(blb); var lk=ceilKey(Object.keys(norm.lb), lb); row=norm.lb[String(lk)]; }
+  } else {
+    var vkg=sc.L*sc.W*sc.H/6000;
+    var bkg=Math.max(sc.kg, vkg);
+    if(bkg<=0.45359237){ oz=Math.ceil(bkg/0.028); var ok2=ceilKey(Object.keys(norm.oz), oz); row=norm.oz[String(ok2)]; }
+    else { lb=Math.ceil(bkg/0.45359237); var lk2=ceilKey(Object.keys(norm.lb), lb); row=norm.lb[String(lk2)]; }
+  }
+  if(!row) return null;
+  price=row[sc.zone]; if(price==null) return null;
+  return {price:price, bk:(lb?lb:(oz/16)), unit:(lb?'lb':'oz')};
+}
+function calcTail(wh, sc){ return tailNorm(wh.tail.norm, sc, wh.id); }
+function calcOne(id, sc){
+  var wh=WH[id];
+  var cats={}; var total=0;
+  // 头程：手填整批USD
+  cats.HEAD={amt:sc.head||0, rating:'na', note:'头程按批次/渠道单独报价，本模型未内置费率；填整批头程USD即纳入全链路'};
+  var ib=wh.inbound, ob=wh.outbound, st=wh.storage, rt=wh.return, tl=wh.tail;
+  // 入库 IB_F
+  if(ib.IB_F && ib.IB_F.price!=null){
+    cats.IB_F={amt:ib.IB_F.price*sc.qty, rating:ib.IB_F.rating, note:ib.IB_F.basis+(ib.IB_F.note?' ｜ '+ib.IB_F.note:'')};
+  } else if(ib.IB_F){ cats.IB_F={amt:0, rating:ib.IB_F.rating, note:ib.IB_F.note||'无'}; }
+  ['LC','IB_TF','IB_TS','NPIF'].forEach(function(k){
+    if(ib[k] && ib[k].price!=null){ cats[k]={amt:ib[k].price*sc.qty, rating:ib[k].rating, note:(ib[k].basis||'')+(ib[k].note?' ｜ '+ib[k].note:'')}; }
+    else if(ib[k]){ cats[k]={amt:0, rating:ib[k].rating, note:ib[k].note||'无'}; }
+  });
+  // 仓储
+  if(st && st.type){
+    var sAmt=0, sNote='';
+    if(st.type==='per_cbm_day'){
+      var r=0; for(var i=0;i<st.tiers.length;i++){ if(sc.days<=st.tiers[i].max){ r=st.tiers[i].rate; break; } }
+      if(sc.days<= (st.freeDays||0)) { sAmt=0; sNote='前'+st.freeDays+'天免'; }
+      else { sAmt=r*sc.vol*Math.max(0,sc.days-(st.freeDays||0)); sNote=r+'/CBM/天 ×'+sc.vol+' ×'+(Math.max(0,sc.days-(st.freeDays||0)))+'天'; }
+    } else if(st.type==='per_cbm_day_month'){
+      var rm=0; for(var j=0;j<st.tiers.length;j++){ if(sc.days<=st.tiers[j].max){ rm=st.tiers[j].rate; break; } }
+      sAmt=rm*sc.vol*sc.days; sNote='按月档(小件) '+rm+'/CBM/天 ×'+sc.vol+' ×'+sc.days+'天';
+    } else if(st.price!=null){
+      sAmt=st.price*sc.qty*sc.days; sNote=st.basis||'';
+    }
+    cats.STO={amt:sAmt, rating:st.rating, note:sNote+(st.note?' ｜ '+st.note:'')};
+  } else if(st && st.price!=null){
+    cats.STO={amt:st.price*sc.qty*sc.days, rating:st.rating, note:(st.basis||'')+(st.note?' ｜ '+st.note:'')};
+  }
+  // 出库 BFF
+  if(ob.BFF && ob.BFF.price!=null){ cats.BFF={amt:ob.BFF.price*sc.qty, rating:ob.BFF.rating, note:(ob.BFF.basis||'')+(ob.BFF.note?' ｜ '+ob.BFF.note:'')}; }
+  else if(ob.BFF){ cats.BFF={amt:0, rating:ob.BFF.rating, note:ob.BFF.note||'无'}; }
+  // 尾程
+  var t=calcTail(wh, sc);
+  cats.TAIL={amt:t?t.price:0, rating:(wh.id==='winit'?'red':(tl.pricing==='结算'?'green':'yellow')), note:tl.carrier+' Zone'+sc.zone+' '+(t?(t.bk.toFixed(3)+'kg '+(t.unit||'')):'')+'｜ '+tl.pricing+'：'+tl.note};
+  // 退件
+  if(rt && rt.price!=null){ cats.RETURN={amt:rt.price*sc.qty, rating:rt.rating, note:(rt.basis||'')+(rt.note?' ｜ '+rt.note:'')}; }
+  else if(rt){ cats.RETURN={amt:0, rating:rt.rating, note:rt.note||'无'}; }
+  total=0; for(var k in cats){ if(cats[k].amt) total+=cats[k].amt; }
+  return {cats:cats, total:total};
+}
+function badge(r){ var m={'green':'🟢已验证','yellow':'🟡部分对齐','red':'🔴未对齐','na':'⚪无数据'}; var c={'green':'b-green','yellow':'b-yellow','red':'b-red','na':'b-na'}; return '<span class="badge '+c[r]+'">'+(m[r]||r)+'</span>'; }
+function fmt(x){ return (Math.round(x*100)/100).toFixed(2); }
+function calcSingle(){
+  var sc=scn(); var r=calcOne(curWh, sc); var wh=WH[curWh];
+  var H1='<div class="tabs">';
+  H1+='<div class="tab'+(curSeg==='all'?' on':'')+'" data-s="all" onclick="switchTab(\'all\')">⑤ 全链路模型</div>';
+  SEGS.forEach(function(s){ H1+='<div class="tab'+(curSeg===s.id?' on':'')+'" data-s="'+s.id+'" onclick="switchTab(\''+s.id+'\')">'+s.name+'</div>'; });
+  H1+='</div>';
+  H1+='<h3 style="margin:4px 0 8px">'+wh.name+' <span style="font-weight:400;color:var(--mut);font-size:13px">'+wh.region+' · '+wh.scope+'</span></h3>';
+  H1+='<table><thead><tr><th>费用科目</th><th class="num">预估金额(USD)</th><th>可验证性</th><th>计费依据</th></tr></thead><tbody>';
+  var shownSegs = SEGS.filter(function(s){ return curSeg==='all' || s.id===curSeg; });
+  var grand=0;
+  shownSegs.forEach(function(s){
+    var rows=s.cats.filter(function(k){ return r.cats[k]; });
+    var segTotal=0;
+    H1+='<tr class="seghead"><td class="cat" colspan="4">'+s.name+'</td></tr>';
+    if(rows.length===0){
+      H1+='<tr><td class="cat" style="padding-left:18px">'+s.name+'</td><td class="num">—</td><td>'+badge('na')+'</td><td class="note">本仓该阶段暂无报价/账单数据</td></tr>';
+    } else {
+      rows.forEach(function(k){
+        var c=r.cats[k]; segTotal+=(c.amt||0);
+        H1+='<tr><td class="cat" style="padding-left:18px">'+SEGLAB[k]+'</td><td class="num amt">'+(c.amt?('$'+fmt(c.amt)):'—')+'</td><td>'+badge(c.rating)+'</td><td class="note">'+ (c.note||'') +'</td></tr>';
+      });
+      if(rows.length>1){
+        H1+='<tr class="subtot"><td class="cat" style="padding-left:18px">'+s.name+' 小计</td><td class="num amt">$'+fmt(segTotal)+'</td><td></td><td class="note">本阶段合计</td></tr>';
+      }
+      grand+=segTotal;
+    }
+  });
+  H1+='</tbody>';
+  if(curSeg==='all'){
+    H1+='<tfoot><tr><td class="cat">全链路合计（本场景'+sc.qty+'件）</td><td class="num tot">$'+fmt(r.total)+'</td><td></td><td class="note">含手填头程；尾程统一 USPS GA Zone'+sc.zone+'</td></tr></tfoot>';
+  } else {
+    H1+='<tfoot><tr><td class="cat">'+(SEGS.filter(function(s){return s.id===curSeg;})[0]||{name:''}).name+' 阶段合计</td><td class="num tot">$'+fmt(grand)+'</td><td></td><td class="note">仅本阶段；切「全链路模型」看端到端</td></tr></tfoot>';
+  }
+  H1+='</table>';
+  document.getElementById('out').innerHTML=H1;
+}
+calcSingle();
+</script>
+</body></html>
